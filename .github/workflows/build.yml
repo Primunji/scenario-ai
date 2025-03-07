@@ -4,16 +4,7 @@ on:
   push:
     branches:
       - main
-
-env:
-  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
-  DOCKER_HUB_ACCESS_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-  DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
-  SSH_HOST: ${{ secrets.SSH_HOST }}
-  SSH_KEY: ${{ secrets.SSH_KEY }}
-  SSH_USER: ${{ secrets.SSH_USER }}
-  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
+      
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,14 +12,17 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v3
 
-      - name: Login to Docker Hub
-        run: |
-          docker login -u ${{ env.DOCKER_HUB_USERNAME }} -p ${{ env.DOCKER_HUB_ACCESS_TOKEN }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
       - name: Build and push Docker image
         run: |
-          docker build -t ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_REPO }}:latest .
-          docker push ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_REPO }}:latest
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -36,14 +30,13 @@ jobs:
       - name: EC2 Docker Run
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ env.SSH_HOST }}
-          username: ${{ env.SSH_USER }}
-          key: ${{ env.SSH_KEY }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
-            sudo docker login -u ${{ env.DOCKER_HUB_USERNAME }} -p ${{ env.DOCKER_HUB_ACCESS_TOKEN }}
-            sudo docker stop ${{ env.DOCKER_REPO }}
-            sudo docker rm ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_REPO }}
-            sudo docker rmi ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_REPO }}:latest
-            sudo docker pull ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_REPO }}:latest
-            sudo docker run -d -p 8080:8080 \
-              -e OPENAI_API_KEY= ${{ env.OPENAI_API_KEY }}
+            sudo docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+            sudo docker stop ${{ secrets.DOCKER_REPO }} || true
+            sudo docker rm ${{ secrets.DOCKER_REPO }} || true
+            sudo docker rmi ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest || true
+            sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
+            sudo docker run -d -p 8080:8080 -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
