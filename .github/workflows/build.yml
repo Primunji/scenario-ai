@@ -42,7 +42,7 @@ jobs:
           script: |
             sudo docker login -u ${{ env.DOCKER_HUB_USERNAME }} -p ${{ env.DOCKER_HUB_ACCESS_TOKEN }}
             sudo docker stop ${{ env.DOCKER_REPO }}
-            sudo docker rm ${{ env.DOCKER_REPO }}
+            sudo docker rm ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_REPO }}
             sudo docker rmi ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_REPO }}:latest
             sudo docker pull ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_REPO }}:latest
             sudo docker run -d -p 8080:8080 \
