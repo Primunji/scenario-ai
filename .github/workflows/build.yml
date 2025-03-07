@@ -14,9 +14,8 @@ env:
   SSH_USER: ${{ secrets.SSH_USER }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
