@@ -49,5 +49,6 @@ jobs:
               -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
               -e TYPECAST_API_KEY=${{ secrets.TYPECAST_API_KEY }} \
               -e DB_URL=${{ secrets.DB_URL }} \
+              -e MONGODB_URL=${{ secrets.MONGODB_URL }} \
               -v /etc/letsencrypt/live/example.com:/certs:ro \
               ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest

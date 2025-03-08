@@ -8,17 +8,20 @@ from pydantic import BaseModel
 
 import utils.sql_connector as sql_connector
 from models import Scenario, Call
+
+import pymongo, datetime
+
 session = sql_connector.get_session()
 
 load_dotenv()
-
-
 
 app = FastAPI()
 
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
+
+mongo_client = pymongo.MongoClient(os.getenv("MONGODB_URL"))
 
 TYPECAST_API_KEY = os.environ.get("TYPECAST_API_KEY")
 
@@ -84,7 +87,7 @@ async def call_websocket(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            
+
             try:
                 request_data = json.loads(data)
                 request = CallGatewayRequest(**request_data)
@@ -96,12 +99,17 @@ async def call_websocket(websocket: WebSocket):
                 if not (scenario):
                     response = CallGatewayResponse(status="error", message="Not found scenario id.")
                     return await websocket.send_text(json.dumps(response.dict()))
-                
+                db = mongo_client['chatdb']
+                collection = db['scenario_chat']  
+
+                data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now() }
+                collection.insert_one(data)
                 message = await get_response(request.message, request.thread_id, scenario.assistant_id)
                 audio_url = await send_typecast_request(message["message"])
+                data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":True, "message": message["message"], "created_at": datetime.datetime.now() }
+                collection.insert_one(data)
                 response = CallGatewayResponse(status="success", message=audio_url)
                 await websocket.send_text(json.dumps(response.dict()))
-                
             except json.JSONDecodeError as e:
                 error_response = CallGatewayResponse(
                     status="error", 
@@ -118,6 +126,58 @@ async def call_websocket(websocket: WebSocket):
     
     except Exception:
         pass
+
+
+@app.websocket("/chat/ws")
+async def chat_websocket(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+
+            try:
+                request_data = json.loads(data)
+                request = CallGatewayRequest(**request_data)
+
+                call = session.query(Call).filter_by(thread_id=request.thread_id).first()
+
+                scenario = session.query(Scenario).filter_by(id=call.scenario_id).first()    
+
+                if not (scenario):
+                    response = CallGatewayResponse(status="error", message="Not found scenario id.")
+                    return await websocket.send_text(json.dumps(response.dict()))
+
+                db = mongo_client['chatdb']
+                collection = db['scenario_chat']  
+
+
+                data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now() }
+                collection.insert_one(data)
+
+                message = await get_response(request.message, request.thread_id, scenario.assistant_id)
+                
+                data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":True, "message": message["message"], "created_at": datetime.datetime.now() }
+                collection.insert_one(data)
+                
+                response = CallGatewayResponse(status="success", message=message["message"])
+                await websocket.send_text(json.dumps(response.dict()))
+            except json.JSONDecodeError as e:
+                error_response = CallGatewayResponse(
+                    status="error", 
+                    message=f"Invalid JSON format: {str(e)}"
+                )
+                await websocket.send_text(json.dumps(error_response.dict()))
+                
+            except Exception as e:
+                error_response = CallGatewayResponse(
+                    status="error", 
+                    message=str(e) or "Unknown error"
+                )
+                await websocket.send_text(json.dumps(error_response.dict()))
+    
+    except Exception:
+        pass
+
 
     
 async def get_thread():
@@ -237,4 +297,4 @@ async def get_chat(request: ChatRequest):
     return await get_response(request.message, request.thread_id, request.assistant_id)
 
 if (__name__ == "__main__"):
-    uvicorn.run(app, host='0.0.0.0', port=8080)
+    uvicorn.run(app, host='0.0.0.0', port=8081)
