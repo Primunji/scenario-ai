@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,16 +27,23 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: EC2 Docker Run
+      - name: GCP Docker Run with SSL
         uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
+            echo "${{ secrets.CERT_PEM }}" | sudo tee /etc/letsencrypt/live/example.com/fullchain.pem > /dev/null
+            echo "${{ secrets.KEY_PEM }}" | sudo tee /etc/letsencrypt/live/example.com/privkey.pem > /dev/null
             sudo docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
             sudo docker stop ${{ secrets.DOCKER_REPO }} || true
             sudo docker rm ${{ secrets.DOCKER_REPO }} || true
             sudo docker rmi ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest || true
             sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
-            sudo docker run -d -p 443:443 -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} -e TYPECAST_API_KEY=${{ secrets.TYPECAST_API_KEY }} -e DB_URL=${{ secrets.DB_URL }} ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
+            sudo docker run -d -p 443:443 \
+              -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+              -e TYPECAST_API_KEY=${{ secrets.TYPECAST_API_KEY }} \
+              -e DB_URL=${{ secrets.DB_URL }} \
+              -v /etc/letsencrypt/live/example.com:/certs:ro \
+              ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
