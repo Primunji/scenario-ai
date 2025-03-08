@@ -39,4 +39,4 @@ jobs:
             sudo docker rm ${{ secrets.DOCKER_REPO }} || true
             sudo docker rmi ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest || true
             sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
-            sudo docker run -d -p 8080:8080 -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
+            sudo docker run -d -p 8080:8080 -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} -e TYPECAST_API_KEY=${{ secrets.TYPECAST_API_KEY }} -e DB_URL=${{ secrets.DB_URL }} ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_REPO }}:latest
