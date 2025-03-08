@@ -34,8 +34,12 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
+            sudo mkdir -p /etc/letsencrypt/live/example.com
+            sudo chmod 700 /etc/letsencrypt/live/example.com
             echo "${{ secrets.CERT_PEM }}" | sudo tee /etc/letsencrypt/live/example.com/fullchain.pem > /dev/null
             echo "${{ secrets.KEY_PEM }}" | sudo tee /etc/letsencrypt/live/example.com/privkey.pem > /dev/null
+            sudo chmod 600 /etc/letsencrypt/live/example.com/fullchain.pem
+            sudo chmod 600 /etc/letsencrypt/live/example.com/privkey.pem
             sudo docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
             sudo docker stop ${{ secrets.DOCKER_REPO }} || true
             sudo docker rm ${{ secrets.DOCKER_REPO }} || true
