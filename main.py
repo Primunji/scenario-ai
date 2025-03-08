@@ -7,7 +7,7 @@ import uvicorn, asyncio, httpx
 from pydantic import BaseModel
 
 import utils.sql_connector as sql_connector
-from models import Scenario, Call
+from models import Scenario, Call, Room
 
 import pymongo, datetime
 
@@ -99,6 +99,7 @@ async def call_websocket(websocket: WebSocket):
                 if not (scenario):
                     response = CallGatewayResponse(status="error", message="Not found scenario id.")
                     return await websocket.send_text(json.dumps(response.dict()))
+                
                 db = mongo_client['chatdb']
                 collection = db['scenario_chat']  
 
@@ -137,7 +138,10 @@ async def chat_websocket(websocket: WebSocket):
 
             try:
                 request_data = json.loads(data)
+                
                 request = CallGatewayRequest(**request_data)
+
+
 
                 call = session.query(Call).filter_by(thread_id=request.thread_id).first()
 
@@ -147,15 +151,42 @@ async def chat_websocket(websocket: WebSocket):
                     response = CallGatewayResponse(status="error", message="Not found scenario id.")
                     return await websocket.send_text(json.dumps(response.dict()))
 
+                room = session.query(Room).filter_by(thread_id=request.thread_id).all()
+                
+                if (not room):
+                    new_room = Room(
+                        thread_id = request.thread_id,
+                        scenario_id = scenario.id,
+                        user_id = call.user_id,
+                        name = scenario.name,
+                        content = scenario.content,
+                        profile_url = scenario.profile_url,
+                        recent_message = request.message,
+                        last_message = datetime.datetime.now()
+                    )
+
+                    session.add(new_room)
+                    session.commit()
+                else:
+                    room_to_update = session.query(Room).filter(Room.thread_id == request.thread_id).first()
+                    room_to_update.recent_message = request.message
+                    room_to_update.last_message = datetime.datetime.now()
+                    session.commit()
+
                 db = mongo_client['chatdb']
                 collection = db['scenario_chat']  
 
-
+            
                 data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now() }
                 collection.insert_one(data)
 
                 message = await get_response(request.message, request.thread_id, scenario.assistant_id)
                 
+                room_to_update = session.query(Room).filter(Room.thread_id == request.thread_id).first()
+                room_to_update.recent_message = message["message"]
+                room_to_update.last_message = datetime.datetime.now()
+                session.commit()
+
                 data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":True, "message": message["message"], "created_at": datetime.datetime.now() }
                 collection.insert_one(data)
                 
@@ -214,6 +245,36 @@ async def get_response(text, thread_id, assistant_id):
         return json.loads(value)
     except:
         return await get_response(text)
+
+
+
+from fastapi.responses import JSONResponse
+
+class ChatModel(BaseModel):
+    id: str
+    thread_id: str
+    message: str
+    created_at: datetime.datetime
+
+
+@app.get('/chat')
+async def get_chat_by_thread(thread_id: str):
+    db = mongo_client['chatdb']
+    collection = db['scenario_chat'] 
+    print(thread_id)
+    result = collection.find({"thread_id": thread_id})
+    chats = [
+        ChatModel(
+            id=str(chat["_id"]),
+            thread_id=chat["thread_id"],
+            message=chat["message"],
+            created_at=chat["created_at"]  # ✅ Pydantic이 자동 변환
+        )
+        for chat in result
+    ]
+
+    return chats
+
 
 @app.get('/thread')
 async def create_thread():
