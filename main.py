@@ -12,7 +12,6 @@ from models import Scenario, Call, Room
 
 import pymongo, datetime
 
-session = sql_connector.get_session()
 
 load_dotenv()
 
@@ -85,6 +84,7 @@ async def send_typecast_request(message: str) -> str:
 @app.websocket("/call/ws")
 async def call_websocket(websocket: WebSocket):
     await websocket.accept()
+    session = sql_connector.get_session()
     try:
         while True:
             data = await websocket.receive_text()
@@ -112,6 +112,11 @@ async def call_websocket(websocket: WebSocket):
                 collection.insert_one(data)
                 response = CallGatewayResponse(status="success", message=audio_url)
                 await websocket.send_text(json.dumps(response.dict()))
+                if (message["is_ended"]):
+                    response = CallGatewayResponse(status="success", message="end")
+                    await websocket.send_text(json.dumps(response.dict()))
+                    await websocket.close()
+                
             except json.JSONDecodeError as e:
                 error_response = CallGatewayResponse(
                     status="error", 
@@ -136,6 +141,8 @@ async def call_websocket(websocket: WebSocket):
 async def chat_websocket(websocket: WebSocket):
     await websocket.accept()
     try:
+        session = sql_connector.get_session()
+
         while True:
             data = await websocket.receive_text()
 
@@ -143,7 +150,6 @@ async def chat_websocket(websocket: WebSocket):
                 request_data = json.loads(data)
                 
                 request = CallGatewayRequest(**request_data)
-
 
 
                 call = session.query(Call).filter_by(thread_id=request.thread_id).first()
