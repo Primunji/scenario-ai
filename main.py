@@ -120,9 +120,11 @@ async def call_websocket(websocket: WebSocket):
                 await websocket.send_text(json.dumps(error_response.dict()))
                 
             except Exception as e:
+                err_msg = traceback.format_exc()
+
                 error_response = CallGatewayResponse(
                     status="error", 
-                    message=str(e) or "Unknown error"
+                    message=str(err_msg) or "Unknown error"
                 )
                 await websocket.send_text(json.dumps(error_response.dict()))
     
