@@ -103,11 +103,11 @@ async def call_websocket(websocket: WebSocket):
                 db = mongo_client['chatdb']
                 collection = db['scenario_chat']  
 
-                data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now() }
+                data = {"thread_id": request.thread_id, "name":"유저", "content":"유저는 기록하지 않습니다","scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now() }
                 collection.insert_one(data)
                 message = await get_response(request.message, request.thread_id, scenario.assistant_id)
                 audio_url = await send_typecast_request(message["message"])
-                data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":True, "message": message["message"], "created_at": datetime.datetime.now() }
+                data = {"thread_id": request.thread_id, "name":scenario.name, "content":scenario.content,"scenario_id": scenario.id, "is_bot":True, "message": message["message"], "created_at": datetime.datetime.now() }
                 collection.insert_one(data)
                 response = CallGatewayResponse(status="success", message=audio_url)
                 await websocket.send_text(json.dumps(response.dict()))
@@ -177,7 +177,7 @@ async def chat_websocket(websocket: WebSocket):
                 collection = db['scenario_chat']  
 
             
-                data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now() }
+                data = {"thread_id": request.thread_id, "name":"유저", "content":"유저는 기록하지 않습니다", "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now() }
                 collection.insert_one(data)
 
                 message = await get_response(request.message, request.thread_id, scenario.assistant_id)
@@ -187,7 +187,7 @@ async def chat_websocket(websocket: WebSocket):
                 room_to_update.last_message = datetime.datetime.now()
                 session.commit()
 
-                data = {"thread_id": request.thread_id, "scenario_id": scenario.id, "is_bot":True, "message": message["message"], "created_at": datetime.datetime.now() }
+                data = {"thread_id": request.thread_id, "name":scenario.name, "content":scenario.content, "scenario_id": scenario.id, "is_bot":True, "message": message["message"], "created_at": datetime.datetime.now() }
                 collection.insert_one(data)
                 
                 response = CallGatewayResponse(status="success", message=message["message"])
@@ -253,6 +253,8 @@ from fastapi.responses import JSONResponse
 class ChatModel(BaseModel):
     id: str
     thread_id: str
+    name: str
+    content: str
     message: str
     is_bot: bool
     created_at: datetime.datetime
@@ -268,6 +270,7 @@ async def get_chat_by_thread(thread_id: str):
         ChatModel(
             id=str(chat["_id"]),
             thread_id=chat["thread_id"],
+            name=chat["name"],
             message=chat["message"],
             is_bot=chat["is_bot"],
             created_at=chat["created_at"]  # ✅ Pydantic이 자동 변환
