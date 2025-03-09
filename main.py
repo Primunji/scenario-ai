@@ -254,6 +254,7 @@ class ChatModel(BaseModel):
     id: str
     thread_id: str
     message: str
+    is_bot: bool
     created_at: datetime.datetime
 
 
@@ -268,6 +269,7 @@ async def get_chat_by_thread(thread_id: str):
             id=str(chat["_id"]),
             thread_id=chat["thread_id"],
             message=chat["message"],
+            is_bot=chat["is_bot"],
             created_at=chat["created_at"]  # ✅ Pydantic이 자동 변환
         )
         for chat in result
