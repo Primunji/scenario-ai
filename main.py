@@ -275,7 +275,12 @@ async def get_chat_by_thread(thread_id: str):
         for chat in result
     ]
 
-    return chats
+    return {
+        "status":200,
+        "state": "success",
+        "message":"성공적으로 메시지를 불러왔습니다.",
+        "data": chats
+    }
 
 
 @app.get('/thread')
