@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, WebSocket
 import uvicorn, asyncio, httpx
 
 from pydantic import BaseModel
+import traceback
 
 import utils.sql_connector as sql_connector
 from models import Scenario, Call, Room
@@ -156,7 +157,7 @@ async def chat_websocket(websocket: WebSocket):
                 if (not room):
                     new_room = Room(
                         thread_id = request.thread_id,
-                        scenario_id = scenario.id,
+                        scenario_id = call.scenario_id,
                         user_id = call.user_id,
                         name = scenario.name,
                         content = scenario.content,
@@ -200,9 +201,10 @@ async def chat_websocket(websocket: WebSocket):
                 await websocket.send_text(json.dumps(error_response.dict()))
                 
             except Exception as e:
+                err_msg = traceback.format_exc()
                 error_response = CallGatewayResponse(
                     status="error", 
-                    message=str(e) or "Unknown error"
+                    message=str(err_msg) or "Unknown error"
                 )
                 await websocket.send_text(json.dumps(error_response.dict()))
     
