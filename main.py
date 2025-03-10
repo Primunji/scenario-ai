@@ -185,8 +185,9 @@ async def chat_websocket(websocket: WebSocket):
                 db = mongo_client['chatdb']
                 collection = db['scenario_chat']  
 
-            
-                data = {"thread_id": request.thread_id, "name":"유저", "content":"유저는 기록하지 않습니다", "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now().strftime("%H:%M") }
+                created_at = datetime.datetime.now().strftime("%H:%M")
+
+                data = {"thread_id": request.thread_id, "name":"유저", "content":"유저는 기록하지 않습니다", "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": created_at }
                 collection.insert_one(data)
 
                 message = await get_response(request.message, request.thread_id, scenario.assistant_id)
@@ -195,8 +196,8 @@ async def chat_websocket(websocket: WebSocket):
                 room_to_update.recent_message = message["message"]
                 room_to_update.last_message = datetime.datetime.now()
                 session.commit()
-
-                data = {"thread_id": request.thread_id, "name":scenario.name, "content":scenario.content, "scenario_id": scenario.id, "is_bot":True, "message": message["message"], "created_at": datetime.datetime.now() }
+                created_at = datetime.datetime.now().strftime("%H:%M")
+                data = {"thread_id": request.thread_id, "name":scenario.name, "content":scenario.content, "scenario_id": scenario.id, "is_bot":True, "message": message["message"], "created_at": created_at }
                 collection.insert_one(data)
                 
                 response = CallGatewayResponse(status="success", message=message["message"])
