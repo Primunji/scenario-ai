@@ -186,7 +186,7 @@ async def chat_websocket(websocket: WebSocket):
                 collection = db['scenario_chat']  
 
             
-                data = {"thread_id": request.thread_id, "name":"유저", "content":"유저는 기록하지 않습니다", "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now() }
+                data = {"thread_id": request.thread_id, "name":"유저", "content":"유저는 기록하지 않습니다", "scenario_id": scenario.id, "is_bot":False, "message": request.message, "created_at": datetime.datetime.now().strftime("%H:%M") }
                 collection.insert_one(data)
 
                 message = await get_response(request.message, request.thread_id, scenario.assistant_id)
