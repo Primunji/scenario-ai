@@ -267,7 +267,7 @@ class ChatModel(BaseModel):
     content: str
     message: str
     is_bot: bool
-    created_at: datetime.datetime
+    created_at: str
 
 
 @app.get('/chat')
